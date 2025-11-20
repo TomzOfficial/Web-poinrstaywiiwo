@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FT Poster Final - Editable & Export 1:1</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --export-size:1080px;
+    --panel-width-12:78%;
+    --panel-width-15:88%;
+    --panel-bg: rgba(0,0,0,0.56);
+    --accent:#e11d48; /* merah */
+    --muted: rgba(255,255,255,0.85);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:#071026;
+    color:#fff;
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+    display:flex;
+    justify-content:center;
+    padding:18px;
+  }
+  .app{max-width:1200px;width:100%}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  input[type="file"], select, button, input[type="number"], input[type="text"]{
+    padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit
+  }
+  button{background:var(--accent);border:none;color:#fff;font-weight:700;cursor:pointer;padding:8px 10px;border-radius:8px}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .hint{font-size:13px;color:#9fb6c6}
+  /* preview */
+  .preview-wrap{display:flex;justify-content:center}
+  #exportAreaWrapper{width:540px;height:540px}
+  #exportArea{
+    width:var(--export-size); height:var(--export-size);
+    transform:scale(0.5); transform-origin:center;
+    border-radius:12px; overflow:hidden; position:relative;
+    background-color:#fff; background-size:cover; background-position:center;
+    box-shadow:0 12px 36px rgba(0,0,0,0.5);
+    display:flex; flex-direction:column;
+  }
+
+  /* poster structure */
+  .poster-header{
+    height:84px; display:flex;align-items:center;gap:12px;padding:12px 28px;
+    background:linear-gradient(90deg,var(--accent),#f97316);
+  }
+  .logo{width:64px;height:64px;border-radius:8px;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-weight:800}
+  .title{font-family:'Montserrat',sans-serif;font-size:36px;letter-spacing:1px;color:#fff;text-transform:uppercase}
+  .subtitle{font-size:14px;color:rgba(255,255,255,0.95);font-weight:600;margin-top:6px}
+
+  .poster-body{flex:1;display:flex;align-items:center;justify-content:center;padding:18px}
+  /* panel width changes based on team count by JS (set --panel-width) */
+  #exportPanel{
+    width:var(--panel-width, 78%);
+    background:var(--panel-bg);
+    border-radius:14px;padding:18px;color:var(--muted);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.5);
+    display:flex;flex-direction:column;align-items:stretch;
+  }
+  #panelHeader{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+  #panelHeader .left{font-weight:800;font-size:18px;color:#fff}
+  #panelHeader .right{font-size:14px;color:rgba(255,255,255,0.85)}
+
+  /* result table: dynamic row font scale via CSS var --row-scale (set by JS) */
+  #resultTable{width:100%;border-collapse:collapse;color:var(--muted);font-size:calc(16px * var(--row-scale,1));}
+  #resultTable thead th{background:rgba(255,255,255,0.04);padding:10px;font-weight:700;border-bottom:2px solid rgba(255,255,255,0.06);color:#fff;font-size:calc(16px * var(--row-scale,1))}
+  #resultTable th, #resultTable td{padding:8px;text-align:left}
+  #resultTable td.center{text-align:center}
+
+  /* rows */
+  #resultTable tbody tr{background:rgba(0,0,0,0.12)}
+  #resultTable tbody tr:nth-child(even){background:rgba(255,255,255,0.02)}
+  tr.top1{background: linear-gradient(90deg,#ffd54d33,#ffd54d120) !important; color:#000}
+  tr.top2{background: linear-gradient(90deg,#c7c7c733,#c7c7c72a) !important; color:#000}
+  tr.top3{background: linear-gradient(90deg,#e0e0e033,#e0e0e01f) !important; color:#000}
+
+  /* winners area */
+  .winners{display:flex;gap:8px;margin-top:12px}
+  .winner{flex:1;padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01));text-align:center;color:#021}
+  .winner strong{display:block;font-size:18px;margin-top:6px}
+
+  .poster-footer{height:64px;background:rgba(0,0,0,0.14);display:flex;align-items:center;justify-content:space-between;padding:8px 18px;color:var(--muted);font-size:14px}
+
+  /* contenteditable visual cue */
+  [contenteditable="true"]{outline:2px dashed rgba(255,255,255,0.08);padding:2px;border-radius:4px}
+  td.editable{cursor:text}
+  td.editable:hover{background:rgba(255,255,255,0.02)}
+  /* smaller screens */
+  @media (max-width:720px){
+    #exportAreaWrapper{width:360px;height:360px}
+    #exportArea{transform:scale(0.33)}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="controls">
+      <label class="hint">Background: <input id="bgFile" type="file" accept="image/*" /></label>
+      <button id="clearBg" class="ghost">Reset BG</button>
+
+      <label>Tim:
+        <select id="teamCount"><option value="12">12</option><option value="15">15</option></select>
+      </label>
+
+      <label>Match:
+        <select id="matchCount"><option>1</option><option>2</option><option>3</option><option selected>4</option></select>
+      </label>
+
+      <button id="apply" class="ghost">Apply</button>
+      <button id="addTeam" class="ghost">+ Team</button>
+      <button id="download" style="margin-left:auto">Download PNG 1:1</button>
+    </div>
+
+    <div class="preview-wrap">
+      <div id="exportAreaWrapper">
+        <div id="exportArea" aria-label="Export Area (1:1)">
+          <!-- POSTER -->
+          <div class="poster">
+            <div class="poster-header">
+              <div class="logo" contenteditable="true" id="logoText">FF</div>
+              <div>
+                <div class="title" contenteditable="true" id="titleText">Match Result</div>
+                <div class="subtitle" contenteditable="true" id="subtitleText">FINAL FFGM OPEN QUALIFIER</div>
+              </div>
+            </div>
+
+            <div class="poster-body">
+              <div id="exportPanel">
+                <div id="panelHeader">
+                  <div class="left" contenteditable="true" id="panelTitle">Match Result</div>
+                  <div class="right" contenteditable="true" id="panelMeta">ALG Indonesia</div>
+                </div>
+
+                <div style="overflow:hidden">
+                  <table id="resultTable">
+                    <!-- filled by JS -->
+                  </table>
+                </div>
+
+                <div class="winners" id="winnersArea">
+                  <!-- winners -->
+                </div>
+              </div>
+            </div>
+
+            <div class="poster-footer">
+              <div contenteditable="true" id="sponsorText">Sponsored by: Sponsor1 • Sponsor2</div>
+              <div contenteditable="true" id="footerMeta">alg.freefire • @alg.indonesia</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<script>
+/* Final logic:
+ - Inline editing: double-click table cells to edit (turns into input), Enter or blur saves.
+ - Header/subtitle/sponsor are contenteditable directly.
+ - If teamCount = 15, panel width increases.
+ - Table auto-scales row font/padding to make all rows visible (no scroll) by adjusting CSS var --row-scale.
+ - Background upload processed to square 1080 center-crop.
+ - Download PNG 1080x1080 using html2canvas.
+*/
+
+(() => {
+  const teamCountSel = document.getElementById('teamCount');
+  const matchCountSel = document.getElementById('matchCount');
+  const applyBtn = document.getElementById('apply');
+  const addTeamBtn = document.getElementById('addTeam');
+  const bgFile = document.getElementById('bgFile');
+  const clearBg = document.getElementById('clearBg');
+  const downloadBtn = document.getElementById('download');
+
+  const exportArea = document.getElementById('exportArea');
+  const exportPanel = document.getElementById('exportPanel');
+  const resultTable = document.getElementById('resultTable');
+  const winnersArea = document.getElementById('winnersArea');
+
+  let teams = []; // each: {name, perMatches: [{placement,kill,points}], total}
+  let matchCount = Number(matchCountSel.value);
+  let teamCount = Number(teamCountSel.value);
+
+  // placement points
+  function getPlacementPoint(rank){
+    rank = Number(rank)||0;
+    if(rank<=0) return 0;
+    const map = {1:15,2:12,3:10,4:8,5:6,6:4,7:2};
+    if(map[rank] !== undefined) return map[rank];
+    if(rank >=8 && rank <=12) return 1;
+    return 0;
+  }
+
+  // create default teams
+  function createDefaultTeams(cnt){
+    teams = [];
+    for(let i=1;i<=cnt;i++){
+      const perMatches = [];
+      for(let m=0;m<matchCount;m++) perMatches.push({placement:0,kill:0,points:0});
+      teams.push({name:'Team '+i, perMatches, total:0});
+    }
+  }
+
+  // recalc totals
+  function recalc(){
+    teams.forEach(t=>{
+      let tot = 0;
+      t.perMatches.forEach(pm=>{
+        pm.points = getPlacementPoint(pm.placement) + (Number(pm.kill)||0);
+        tot += pm.points;
+      });
+      t.total = tot;
+    });
+    // sort by total desc
+    teams.sort((a,b) => (b.total - a.total) || a.name.localeCompare(b.name));
+    adaptPanelWidth();
+    adaptRowScale();
+    renderTable();
+  }
+
+  // adapt panel width based on team count
+  function adaptPanelWidth(){
+    const panelWidth = (teams.length >= 15) ? getComputedStyle(document.documentElement).getPropertyValue('--panel-width-15') : getComputedStyle(document.documentElement).getPropertyValue('--panel-width-12');
+    // set CSS variable
+    exportPanel.style.setProperty('--panel-width', panelWidth.trim());
+    // also set as inline CSS var for template: --panel-width
+    exportPanel.style.width = panelWidth.trim();
+  }
+
+  // adapt row scale so all rows fit in panel without scroll
+  function adaptRowScale(){
+    // available table height inside panel: approximately panel height minus headers/winners/paddings.
+    // We'll estimate and compute scale factor relative to baseline 12 rows.
+    const baseline = 12; // baseline comfortable rows
+    const n = Math.max(1, teams.length);
+    // scale = min(1, baseline / n)
+    let scale = Math.min(1, baseline / n);
+    // but don't make too small: floor 0.6
+    scale = Math.max(0.55, scale);
+    // set CSS var --row-scale on resultTable
+    resultTable.style.setProperty('--row-scale', scale);
+  }
+
+  // render table into poster (non-edit inputs are displayed; editing via double-click)
+  function renderTable(){
+    // build header
+    resultTable.innerHTML = '';
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    trh.innerHTML = '<th style="width:48px">NO</th><th>NAMA TEAM</th>';
+    for(let m=1;m<=matchCount;m++) trh.innerHTML += `<th>M${m} (P/K/Poin)</th>`;
+    trh.innerHTML += '<th style="width:100px">TOTAL</th>';
+    thead.appendChild(trh); resultTable.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    teams.forEach((t, idx) => {
+      const tr = document.createElement('tr');
+      tr.className = idx===0? 'top1' : (idx===1? 'top2' : (idx===2? 'top3' : ''));
+      tr.dataset.index = idx;
+      // build cells
+      const noTd = document.createElement('td'); noTd.className='center'; noTd.innerText = (idx+1);
+      const nameTd = document.createElement('td'); nameTd.className='editable'; nameTd.innerText = t.name;
+      // allow double-click to edit
+      makeTdEditable(nameTd, (val)=>{ t.name = val; recalc(); });
+
+      tr.appendChild(noTd); tr.appendChild(nameTd);
+
+      for(let m=0;m<matchCount;m++){
+        const pm = t.perMatches[m] || {placement:0,kill:0,points:0};
+        const td = document.createElement('td'); td.className='editable';
+        td.innerText = `#${pm.placement} / ${pm.kill} / ${pm.points}`;
+        // double-click to edit placement & kill for this match (small inline editor)
+        td.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          editMatchCellInline(td, t, m);
+        });
+        tr.appendChild(td);
+      }
+
+      const totalTd = document.createElement('td'); totalTd.className='center'; totalTd.innerHTML = `<strong>${t.total}</strong>`;
+      tr.appendChild(totalTd);
+
+      tbody.appendChild(tr);
+    });
+    resultTable.appendChild(tbody);
+    renderWinners();
+  }
+
+  // create editable td behavior for name cells
+  function makeTdEditable(td, onSave){
+    td.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      const old = td.innerText;
+      const input = document.createElement('input');
+      input.type='text'; input.value = old;
+      input.style.width = '100%'; input.style.padding = '6px'; input.style.borderRadius = '6px';
+      td.innerText = ''; td.appendChild(input); input.focus();
+      const save = ()=>{
+        const val = input.value.trim() || old;
+        td.removeChild(input);
+        td.innerText = val;
+        onSave(val);
+      };
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (ev)=>{ if(ev.key === 'Enter'){ ev.preventDefault(); input.blur(); } });
+    });
+  }
+
+  // inline editor for match cell: show small popup input for placement & kill
+  function editMatchCellInline(td, teamObj, matchIndex){
+    // create small inline form
+    const pm = teamObj.perMatches[matchIndex];
+    const wrapper = document.createElement('div');
+    wrapper.style.display='flex'; wrapper.style.gap='6px';
+    const inpP = document.createElement('input'); inpP.type='number'; inpP.min='0'; inpP.value = pm.placement; inpP.placeholder='P';
+    const inpK = document.createElement('input'); inpK.type='number'; inpK.min='0'; inpK.value = pm.kill; inpK.placeholder='K';
+    const saveBtn = document.createElement('button'); saveBtn.textContent='OK'; saveBtn.style.padding='6px'; saveBtn.style.fontSize='12px';
+    wrapper.appendChild(inpP); wrapper.appendChild(inpK); wrapper.appendChild(saveBtn);
+
+    // replace content
+    td.innerText=''; td.appendChild(wrapper);
+    inpK.focus();
+
+    const doSave = ()=>{
+      pm.placement = Number(inpP.value) || 0;
+      pm.kill = Number(inpK.value) || 0;
+      // recalc and restore display
+      recalc();
+    };
+    saveBtn.addEventListener('click', doSave);
+    // blur behavior: if both inputs blur and no click, save
+    inpP.addEventListener('keydown', (e)=>{ if(e.key==='Enter') { e.preventDefault(); inpK.focus(); }});
+    inpK.addEventListener('keydown', (e)=>{ if(e.key==='Enter') { e.preventDefault(); doSave(); }});
+  }
+
+  // winners boxes render
+  function renderWinners(){
+    winnersArea.innerHTML = '';
+    const titles = ['🥇 Juara 1','🥈 Juara 2','🥉 Juara 3'];
+    for(let k=0;k<3;k++){
+      const box = document.createElement('div'); box.className='winner';
+      const t = teams[k];
+      if(t){
+        box.innerHTML = `<div style="font-weight:700">${titles[k]}</div><strong>${escapeHtml(t.name)}</strong><div style="font-size:12px;margin-top:6px">Total: ${t.total}</div>`;
+      } else {
+        box.innerHTML = `<div class="hint">${titles[k]} —</div>`;
+      }
+      winnersArea.appendChild(box);
+    }
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // image processing to square 1080 (center crop)
+  function processImageToSquare(file){
+    return new Promise((resolve,reject)=>{
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = e => img.src = e.target.result;
+      img.onload = ()=>{
+        try{
+          const out = 1080;
+          const canvas = document.createElement('canvas'); canvas.width = out; canvas.height = out;
+          const ctx = canvas.getContext('2d');
+          const iw = img.width, ih = img.height;
+          const scale = Math.max(out/iw, out/ih);
+          const sw = out/scale, sh = out/scale;
+          const sx = Math.max(0, (iw - sw)/2);
+          const sy = Math.max(0, (ih - sh)/2);
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, out, out);
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        }catch(err){ reject(err); }
+      };
+      reader.onerror = reject;
+      img.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // download PNG (1080x1080)
+  async function downloadPNG(){
+    recalc();
+    try{
+      const node = document.getElementById('exportArea');
+      // ensure fonts loaded; scale=1 because node has CSS width=1080px
+      const canvas = await html2canvas(node, {useCORS:true, backgroundColor: null, width:1080, height:1080, scale:1});
+      const dataURL = canvas.toDataURL('image/png');
+      const a = document.createElement('a'); a.href = dataURL; a.download = 'ft-result-1080.png'; document.body.appendChild(a); a.click(); a.remove();
+    }catch(err){
+      alert('Gagal membuat PNG: '+err);
+      console.error(err);
+    }
+  }
+
+  // handlers
+  bgFile.addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if(!f) return;
+    try{
+      const dataURL = await processImageToSquare(f);
+      exportArea.style.backgroundImage = `url(${dataURL})`;
+      exportArea.style.backgroundSize = 'cover';
+      exportArea.style.backgroundPosition = 'center';
+    }catch(err){
+      alert('Gagal memproses gambar: '+err);
+    }
+  });
+  clearBg.addEventListener('click', ()=>{ exportArea.style.backgroundImage = ''; bgFile.value = null; });
+
+  applyBtn.addEventListener('click', ()=>{
+    matchCount = Number(matchCountSel.value);
+    teamCount = Number(teamCountSel.value);
+    createDefaultTeams(teamCount);
+    recalc();
+  });
+
+  addTeamBtn.addEventListener('click', ()=>{
+    const perMatches = [];
+    for(let m=0;m<matchCount;m++) perMatches.push({placement:0,kill:0,points:0});
+    teams.push({name:'Team '+(teams.length+1), perMatches, total:0});
+    recalc();
+  });
+
+  downloadBtn.addEventListener('click', downloadPNG);
+
+  // init default
+  createDefaultTeams(teamCount);
+  recalc();
+
+  // allow double-click on winners to edit title text? header/footer already contenteditable by user
+
+})();
+</script>
+</body>
+</html>
